@@ -9,22 +9,25 @@ import java.util.Map;
 
 public class Board implements BoardInterface
 {
-	private Map<Position, ShipInterface> horizontalShips;
-	private Map<Position, ShipInterface> verticalShips;
+	private Map<Placement, ShipInterface> ships;
 	
 	public Board()
 	{
-		horizontalShips = new HashMap<Position, ShipInterface>();
-		verticalShips = new HashMap<Position, ShipInterface>();
+		ships = new HashMap<Placement, ShipInterface>();
 	}
 	
 	@Override
 	public void placeShip(ShipInterface ship, Position position, boolean isVertical)
 			throws InvalidPositionException, ShipOverlapException
 	{
-		if(horizontalShips.containsKey(position) || verticalShips.containsKey(position))
+		if(ships.containsKey(position))
 		{
 			throw new ShipOverlapException("There already exists a ship in that position.");
+		}
+		
+		if(position.getX() + (!isVertical ? ship.getSize() : 0) >= 10 || position.getY() + (isVertical ? ship.getSize() : 0) >= 10)
+		{
+			throw new InvalidPositionException("Ship boundaries are out of board range.");
 		}
 		
 		int[][] drawArray = new int[10][10];
@@ -37,19 +40,11 @@ public class Board implements BoardInterface
 			}
 		}
 		
-		for (Map.Entry<Position,ShipInterface> pair : horizontalShips.entrySet())
+		for (Map.Entry<Placement,ShipInterface> pair : ships.entrySet())
 		{
-			for(int i = pair.getKey().getX(); i < pair.getValue().getSize(); i++)
+			for(int i = 0; i < pair.getValue().getSize(); i++)
 			{
-				drawArray[pair.getKey().getX() + i][pair.getKey().getY()] = 1;
-			}
-        }
-		
-		for (Map.Entry<Position,ShipInterface> pair : verticalShips.entrySet())
-		{
-			for(int i = pair.getKey().getX(); i < pair.getValue().getSize(); i++)
-			{
-				drawArray[pair.getKey().getX()][pair.getKey().getY() + i] = 1;
+				drawArray[pair.getKey().getPosition().getX() + (!pair.getKey().isVertical() ? i : 0)][pair.getKey().getPosition().getY() + (pair.getKey().isVertical() ? i : 0)] = 1;
 			}
         }
 		
@@ -63,37 +58,17 @@ public class Board implements BoardInterface
 			}
 		}
 		
-		if(isVertical)
-		{
-			verticalShips.put(position, ship);
-		}
-		else
-		{
-			horizontalShips.put(position, ship);
-		}
+		ships.put(new Placement(position, isVertical), ship);
 	}
 	
 	private ShipInterface getShipAt(Position pos)
 	{
-		for (Map.Entry<Position,ShipInterface> pair : horizontalShips.entrySet())
+		for (Map.Entry<Placement,ShipInterface> pair : ships.entrySet())
 		{
-			for(int i = pair.getKey().getX(); i < pair.getValue().getSize(); i++)
+			for(int i = 0; i < pair.getValue().getSize(); i++)
 			{
-				int x = pair.getKey().getX() + i;
-				int y = pair.getKey().getY();
-				if(pos.getX() == x && pos.getY() == y)
-				{
-					return pair.getValue();
-				}
-			}
-        }
-		
-		for (Map.Entry<Position,ShipInterface> pair : verticalShips.entrySet())
-		{
-			for(int i = pair.getKey().getX(); i < pair.getValue().getSize(); i++)
-			{
-				int x = pair.getKey().getX();
-				int y = pair.getKey().getY() + i;
+				int x = pair.getKey().getPosition().getX() + (!pair.getKey().isVertical() ? i : 0);
+				int y = pair.getKey().getPosition().getY() + (pair.getKey().isVertical() ? i : 0);
 				if(pos.getX() == x && pos.getY() == y)
 				{
 					return pair.getValue();
@@ -120,29 +95,19 @@ public class Board implements BoardInterface
 	{
 		Position shipPos = null;
 		int offset = 0;
-		if(horizontalShips.containsValue(ship))
+		if(ships.containsValue(ship))
 		{
-			for (Map.Entry<Position,ShipInterface> pair : horizontalShips.entrySet())
+			boolean isVertical = false;
+			for (Map.Entry<Placement,ShipInterface> pair : ships.entrySet())
 			{
 				if(pair.getValue().equals(ship))
 				{
-					shipPos = pair.getKey();
+					shipPos = pair.getKey().getPosition();
+					isVertical = pair.getKey().isVertical();
 					break;
 				}
 			}
-			offset = Math.abs(position.getX() - shipPos.getX());
-		}
-		else if(verticalShips.containsValue(ship))
-		{
-			for (Map.Entry<Position,ShipInterface> pair : verticalShips.entrySet())
-			{
-				if(pair.getValue().equals(ship))
-				{
-					shipPos = pair.getKey();
-					break;
-				}
-			}
-			offset = Math.abs(position.getX() - shipPos.getY());
+			offset = !isVertical ? Math.abs(position.getX() - shipPos.getX()) : Math.abs(position.getY() - shipPos.getY());
 		}
 		
 		return offset;
@@ -164,15 +129,7 @@ public class Board implements BoardInterface
 	@Override
 	public boolean allSunk()
 	{
-		for (Map.Entry<Position,ShipInterface> pair : horizontalShips.entrySet())
-		{
-			if(!pair.getValue().isSunk())
-			{
-				return false;
-			}
-		}
-		
-		for (Map.Entry<Position,ShipInterface> pair : verticalShips.entrySet())
+		for (Map.Entry<Placement,ShipInterface> pair : ships.entrySet())
 		{
 			if(!pair.getValue().isSunk())
 			{
